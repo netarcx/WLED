@@ -377,6 +377,8 @@ void getSettingsJS(byte subPage, Print& settingsScript)
       char rf[4] = "RF"; rf[2] = offset+s; rf[3] = 0; //off refresh
       char aw[4] = "AW"; aw[2] = offset+s; aw[3] = 0; //auto white mode
       char wo[4] = "WO"; wo[2] = offset+s; wo[3] = 0; //swap channels
+      char ww[4] = "WW"; ww[2] = offset+s; ww[3] = 0; //paired warm white channel
+      char cw[4] = "CW"; cw[2] = offset+s; cw[3] = 0; //paired cold white channel
       char sp[4] = "SP"; sp[2] = offset+s; sp[3] = 0; //bus clock speed
       char la[4] = "LA"; la[2] = offset+s; la[3] = 0; //LED current
       char ma[4] = "MA"; ma[2] = offset+s; ma[3] = 0; //max per-port PSU current
@@ -398,6 +400,8 @@ void getSettingsJS(byte subPage, Print& settingsScript)
       printSetFormCheckbox(settingsScript,rf,bus->isOffRefreshRequired());
       printSetFormValue(settingsScript,aw,bus->getAutoWhiteMode());
       printSetFormValue(settingsScript,wo,bus->getColorOrder() >> 4);
+      printSetFormValue(settingsScript,ww,bus->getWarmWhiteChannel());
+      printSetFormValue(settingsScript,cw,bus->getColdWhiteChannel());
       unsigned speed = bus->getFrequency();
       if (bus->isPWM()) {
         switch (speed) {

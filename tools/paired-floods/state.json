@@ -1,0 +1,27 @@
+{
+  "on": true,
+  "bri": 64,
+  "transition": 0,
+  "mainseg": 0,
+  "seg": [
+    {
+      "id": 0,
+      "start": 0,
+      "stop": 4,
+      "grp": 1,
+      "spc": 0,
+      "of": 0,
+      "rev": false,
+      "mi": false,
+      "n": "Floodlights",
+      "on": true,
+      "sel": true,
+      "bri": 255,
+      "fx": 0,
+      "pal": 0,
+      "cct": 127,
+      "col": [[255, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+    },
+    {"id": 1, "stop": 0}
+  ]
+}

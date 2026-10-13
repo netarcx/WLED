@@ -1,0 +1,32 @@
+{
+  "hw": {
+    "led": {
+      "total": 4,
+      "maxpwr": 2000,
+      "cct": false,
+      "cr": false,
+      "ic": false,
+      "cb": 0,
+      "rgbwm": 255,
+      "ins": [
+        {
+          "start": 0,
+          "len": 4,
+          "pin": [16],
+          "order": 2,
+          "rev": false,
+          "skip": 0,
+          "type": 35,
+          "ref": true,
+          "rgbwm": 0,
+          "freq": 0,
+          "maxpwr": 0,
+          "ledma": 110,
+          "drv": 0,
+          "ww": 1,
+          "cw": 2
+        }
+      ]
+    }
+  }
+}

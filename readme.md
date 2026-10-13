@@ -9,6 +9,62 @@
   <a href="https://gitpod.io/#https://github.com/wled-dev/WLED"><img src="https://img.shields.io/badge/Gitpod-ready--to--code-blue?style=flat-square&logo=gitpod"></a>
 </p>
 
+# Personal fork: paired RGB+CCT floodlights
+
+This fork adds **Paired SK6812 RGB+CCT** (LED type `35`). WLED sees one pixel
+per floodlight; the driver sends RGB to physical address `2*n` and tunable white
+to address `2*n+1`, using the existing SK6812 transport and color order.
+
+In **Config → LED Preferences**, choose the new type and set **Length to 4**
+for four floodlights. Keep **GPIO 16**, **BRG** color order and **Swap: None**
+for this installation. The separate **Warm white channel** and **Cool white
+channel** selectors default to **Green** and **Blue**. Either can be reassigned
+to Red, Green, Blue or W; the two must differ. These channel names refer to the
+sliders that controlled the old white-address segment, before wire color ordering.
+The existing Swap control is retained, including WW & CW.
+
+Use **Auto-calculate W channel from RGB: None**, with the global override set to
+**Disabled** (or **None**), and keep the white slider at zero for color-only
+animations. Manual white brightness and the temperature slider control the
+white emitters. An effect or preset that explicitly requests white can still
+use it. Brightness limiting scales both addresses without changing their white
+temperature; logical color readback is retained for effects.
+
+The old `[0,2,4,6,1,3,5,7]` LED map and separate Color/White segments must be
+replaced for this output type. Upload
+[the identity map](tools/paired-floods/ledmap.json) as `/ledmap.json`, use a single
+segment covering logical pixels **0–3** (start `0`, stop `4`), and recreate old
+presets that restore the two-segment layout. Skip and Reverse now operate on
+whole floodlights. Current per LED is current **per floodlight**; the example
+uses 110 mA as a conservative migration from two addresses at 55 mA each, not
+a measured electrical rating.
+
+Configuration examples for this installation:
+
+- [Hardware settings](tools/paired-floods/hardware.json): a **partial** configuration
+  for `POST /json/cfg` after installing this firmware. It contains no Wi-Fi or
+  account settings; do not use it as a full configuration restore file.
+- [Identity LED map](tools/paired-floods/ledmap.json): upload using `/edit`, then reboot.
+- [Single-segment state](tools/paired-floods/state.json): for `POST /json/state`;
+  starts at low brightness with red RGB and white off.
+
+Build only the standard ESP32 target locally:
+
+```sh
+npm ci
+npm test
+npm run build
+pio run -e esp32dev
+```
+
+The OTA binary is `build_output/release/WLED_17.0.0-devV5_ESP32.bin`.
+`npm test` also runs the production output-driver code on the host, using an
+in-memory transport and address/undefined-behavior sanitizers when `g++` is
+available. It checks channel mapping, RGB-only chases, temperature, readback,
+skip/reverse, limiting and allocation failures. Only the standard ESP32 firmware
+has been built; physical LED behavior still needs testing on the installation.
+GitHub Actions are disabled on this personal fork, and no upstream PR is planned.
+
 # Welcome to WLED! ✨
 
 A fast and feature-rich firmware for ESP32 microcontrollers to control addressable LEDs — from simple strips to large 2D matrices and HUB75 panels.

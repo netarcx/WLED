@@ -1332,6 +1332,7 @@ class PolyBus {
         case TYPE_WS2812_WWA:
           t = I_8266_U0_NEO_3 + offset; break;
         case TYPE_SK6812_RGBW:
+        case TYPE_SK6812_PAIRED:
           t = I_8266_U0_NEO_4 + offset; break;
         case TYPE_WS2811_400KHZ:
           t = I_8266_U0_400_3 + offset; break;
@@ -1374,6 +1375,7 @@ class PolyBus {
         case TYPE_WS2812_WWA:
           t = I_32_RN_NEO_3 + offset; break;
         case TYPE_SK6812_RGBW:
+        case TYPE_SK6812_PAIRED:
           t = I_32_RN_NEO_4 + offset; break;
         case TYPE_WS2811_400KHZ:
           t = I_32_RN_400_3 + offset; break;

@@ -227,6 +227,8 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       char rf[4] = "RF"; rf[2] = offset+s; rf[3] = 0; //refresh required
       char aw[4] = "AW"; aw[2] = offset+s; aw[3] = 0; //auto white mode
       char wo[4] = "WO"; wo[2] = offset+s; wo[3] = 0; //channel swap
+      char ww[4] = "WW"; ww[2] = offset+s; ww[3] = 0; //paired warm white channel
+      char cw[4] = "CW"; cw[2] = offset+s; cw[3] = 0; //paired cold white channel
       char sp[4] = "SP"; sp[2] = offset+s; sp[3] = 0; //bus clock speed (DotStar & PWM)
       char la[4] = "LA"; la[2] = offset+s; la[3] = 0; //LED mA
       char ma[4] = "MA"; ma[2] = offset+s; ma[3] = 0; //max mA
@@ -284,9 +286,11 @@ void handleSettingsSet(AsyncWebServerRequest *request, byte subPage)
       type |= request->hasArg(rf) << 7; // off refresh override
       driverType = request->arg(ld).toInt(); // 0=RMT (default), 1=I2S
       text = request->arg(hs).substring(0,31);
+      int warmChannel = request->hasArg(ww) ? request->arg(ww).toInt() : PairedRgbw::WARM_CHANNEL;
+      int coldChannel = request->hasArg(cw) ? request->arg(cw).toInt() : PairedRgbw::COLD_CHANNEL;
       // actual finalization is done in WLED::loop() (removing old busses and adding new)
       // this may happen even before this loop is finished so we do "doInitBusses" after the loop
-      busConfigs.emplace_back(type, pins, start, length, colorOrder | (channelSwap<<4), request->hasArg(cv), skip, awmode, freq, maPerLed, maMax, driverType, text);
+      busConfigs.emplace_back(type, pins, start, length, colorOrder | (channelSwap<<4), request->hasArg(cv), skip, awmode, freq, maPerLed, maMax, driverType, text, warmChannel, coldChannel);
       busesChanged = true;
     }
     //doInitBusses = busesChanged; // we will do that below to ensure all input data is processed
