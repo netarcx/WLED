@@ -478,6 +478,7 @@ static_assert(WLED_MAX_BUSSES <= 32, "WLED_MAX_BUSSES exceeds hard limit");
 #define SEG_CAPABILITY_RGB     0x01
 #define SEG_CAPABILITY_W       0x02
 #define SEG_CAPABILITY_CCT     0x04
+#define SEG_CAPABILITY_PAIRED  0x10 // selectable RGB / white / RGB+white output
 
 // WLED Error modes
 #define ERR_NONE         0  // All good :)

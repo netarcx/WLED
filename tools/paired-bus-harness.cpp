@@ -42,10 +42,16 @@ struct RgbwColor {
 enum class PinOwner { BusDigital };
 struct PinManager {
   static bool deny;
-  static bool allocatePin(uint8_t, bool, PinOwner) { return !deny; }
-  static void deallocatePin(uint8_t, PinOwner) {}
+  static bool allocated[256];
+  static bool allocatePin(uint8_t pin, bool, PinOwner) {
+    if (deny || pin == 255 || allocated[pin]) return false;
+    allocated[pin] = true;
+    return true;
+  }
+  static void deallocatePin(uint8_t pin, PinOwner) { if (pin != 255) allocated[pin] = false; }
 };
 bool PinManager::deny = false;
+bool PinManager::allocated[256] = {};
 static bool denyMemory = false;
 void *d_malloc(size_t size) { return denyMemory ? nullptr : malloc(size); }
 uint16_t approximateKelvinFromRGB(uint32_t) { return 6500; }
@@ -87,6 +93,7 @@ namespace BusManager { bool _useABL = true; }
 int16_t Bus::_cct = 0;
 int8_t Bus::_cctBlend = 0;
 uint8_t Bus::_gAWM = AW_GLOBAL_DISABLED;
+uint8_t Bus::_outputMode = PairedRgbw::COLOR_WHITE;
 uint16_t BusDigital::_milliAmpsTotal = 0;
 
 // @METHODS@
@@ -101,12 +108,119 @@ static uint32_t at(unsigned index, uint8_t order = COL_ORDER_BRG) {
   return PolyBus::getPixelColor(PolyBus::last, 1, index, order);
 }
 
+// Exercise the real Segment conversion and real 1D compositor on a host canvas.
+constexpr uint8_t FX_MODE_STATIC = 0;
+struct TestSegment {
+  int start = 0, stop = 4, offset = 0;
+  bool reverse = false;
+  uint8_t mode = 0, outputMode = 0, _capabilities = SEG_CAPABILITY_PAIRED;
+  std::vector<uint32_t> pixels = std::vector<uint32_t>(4);
+  // @SEGMENT_OUTPUT@
+  // @SEGMENT_CAPABILITIES@
+};
+static uint32_t color_blend(uint32_t, uint32_t top, uint8_t amount) { assert(amount == 255); return top; }
+static void renderSegment(const TestSegment &topSegment, uint32_t *_pixels, uint8_t *_pixelModes, uint8_t *_pixelCCT) {
+  const int length = topSegment.stop - topSegment.start;
+  const uint8_t opacity = 255, cct = 127;
+  const auto segblend = [](uint32_t top, uint32_t) { return top; };
+  // @FAST_BLEND@
+}
+
 int main() {
   assert(Bus::hasRGB(TYPE_SK6812_PAIRED));
   assert(Bus::hasWhite(TYPE_SK6812_PAIRED));
   assert(Bus::hasCCT(TYPE_SK6812_PAIRED));
   assert(Bus::getWireChannels(TYPE_SK6812_PAIRED) == 8);
   assert(Bus::getWireChannels(TYPE_SK6812_RGBW) == 4);
+  // Color/white modes are capabilities plus physical output gates.
+  {
+    const uint8_t available = SEG_CAPABILITY_PAIRED | SEG_CAPABILITY_RGB | SEG_CAPABILITY_W | SEG_CAPABILITY_CCT;
+    assert(PairedRgbw::capabilities(available,0) == (SEG_CAPABILITY_PAIRED | SEG_CAPABILITY_RGB));
+    assert(PairedRgbw::capabilities(available,1) == (SEG_CAPABILITY_PAIRED | SEG_CAPABILITY_W | SEG_CAPABILITY_CCT));
+    assert(PairedRgbw::capabilities(available,2) == available);
+    TestSegment seg;
+    seg._capabilities = available;
+    for (uint8_t mode = 0; mode < 3; mode++) {
+      seg.outputMode = mode;
+      assert(seg.getLightCapabilities() == (mode == 0 ? 1 : mode == 1 ? 6 : 7));
+    }
+    const uint32_t rgb = RGBW32(200,100,50,0);
+    assert(PairedRgbw::segmentColor(rgb,0,true) == rgb);
+    assert(PairedRgbw::segmentColor(rgb,1,true) == RGBW32(0,0,0,200));
+    assert(PairedRgbw::segmentColor(rgb,2,true) == RGBW32(200,100,50,200));
+    assert(PairedRgbw::segmentColor(rgb,1,false) == 0); // Solid uses the W slider
+    assert(PairedRgbw::segmentColor(RGBW32(200,100,50,80),1,true) == RGBW32(0,0,0,80));
+    for (uint8_t autoMode = 0; autoMode < 5; autoMode++) {
+      BusDigital bus(config());
+      Bus::setGlobalAWMode(autoMode);
+      Bus::setCCT(0);
+      Bus::setOutputMode(PairedRgbw::COLOR_ONLY);
+      bus.setPixelColor(0,0xFFFFFFFF);
+      assert(at(0) == RGBW32(255,255,255,0) && at(1) == 0);
+      Bus::setOutputMode(PairedRgbw::WHITE_ONLY);
+      bus.setPixelColor(0,RGBW32(200,100,50,80));
+      assert(at(0) == 0 && at(1) == RGBW32(0,80,0,0));
+    }
+    Bus::setGlobalAWMode(AW_GLOBAL_DISABLED);
+    Bus::setOutputMode(PairedRgbw::COLOR_WHITE);
+  }
+
+  // Different floods in the same animation may use different channel modes.
+  {
+    BusDigital bus(config());
+    const uint8_t modes[] = {0,1,2,0};
+    const uint32_t colors[] = {RGBW32(255,0,0,0),RGBW32(0,128,0,0),RGBW32(0,0,64,0),RGBW32(100,50,25,200)};
+    for (unsigned i = 0; i < 4; i++) {
+      Bus::setCCT(i == 1 ? 255 : 0);
+      Bus::setOutputMode(modes[i]);
+      bus.setPixelColor(i,PairedRgbw::segmentColor(colors[i],modes[i],true));
+    }
+    assert(at(0) == RGBW32(255,0,0,0) && at(1) == 0);
+    assert(at(2) == 0 && at(3) == RGBW32(0,0,128,0));
+    assert(at(4) == RGBW32(0,0,64,0) && at(5) == RGBW32(0,64,0,0));
+    assert(at(6) == RGBW32(100,50,25,0) && at(7) == 0);
+    Bus::setOutputMode(PairedRgbw::COLOR_WHITE);
+  }
+
+  // One Solid segment changes every flood together; per-module segments can
+  // independently route animated pixels without mutating their effect buffers.
+  {
+    BusDigital bus(config());
+    uint32_t canvas[4] = {};
+    uint8_t modes[4] = {}, ccts[4] = {};
+    TestSegment solid;
+    solid.outputMode = PairedRgbw::WHITE_ONLY;
+    std::fill(solid.pixels.begin(),solid.pixels.end(),RGBW32(200,100,50,80));
+    renderSegment(solid,canvas,modes,ccts);
+    for (unsigned i = 0; i < 4; i++) {
+      assert(canvas[i] == RGBW32(0,0,0,80) && modes[i] == PairedRgbw::WHITE_ONLY);
+      Bus::setOutputMode(modes[i]); Bus::setCCT(0); bus.setPixelColor(i,canvas[i]);
+      assert(at(2*i) == 0 && at(2*i+1) == RGBW32(0,80,0,0));
+    }
+    const uint8_t perModule[] = {0,1,2,0};
+    for (int i = 0; i < 4; i++) {
+      TestSegment module;
+      module.start = i; module.stop = i + 1; module.mode = 1; module.outputMode = perModule[i];
+      module.pixels[0] = RGBW32(200,100,50,0);
+      renderSegment(module,canvas,modes,ccts);
+      assert(modes[i] == perModule[i]);
+      assert(module.pixels[0] == RGBW32(200,100,50,0));
+      Bus::setOutputMode(modes[i]); bus.setPixelColor(i,canvas[i]);
+    }
+    assert(at(0) == RGBW32(200,100,50,0) && at(1) == 0);
+    assert(at(2) == 0 && at(3) == RGBW32(0,200,0,0));
+    assert(at(4) == RGBW32(200,100,50,0) && at(5) == RGBW32(0,200,0,0));
+    assert(at(6) == RGBW32(200,100,50,0) && at(7) == 0);
+    solid.mode = 1; solid.reverse = true; solid.offset = 1;
+    solid.outputMode = PairedRgbw::COLOR_WHITE;
+    for (unsigned i = 0; i < 4; i++) solid.pixels[i] = RGBW32(20*(i+1),0,0,0);
+    renderSegment(solid,canvas,modes,ccts);
+    assert(W(canvas[0]) == 20 && W(canvas[3]) == 40); // reverse plus wrapped offset
+    solid._capabilities = SEG_CAPABILITY_RGB | SEG_CAPABILITY_W;
+    renderSegment(solid,canvas,modes,ccts);
+    assert(W(canvas[0]) == 0 && modes[0] == PairedRgbw::UNFILTERED); // ordinary RGBW outputs retain their behavior
+    Bus::setOutputMode(PairedRgbw::COLOR_WHITE);
+  }
 
   // Chase runs through all floods and never lights either white emitter.
   {
@@ -191,9 +305,11 @@ int main() {
   {
     auto cfg = config(UINT16_MAX);
     uint16_t total = 1;
-    assert(cfg.adjustBounds(total) && cfg.count == MAX_LEDS_PER_BUS / 2);
+    assert(cfg.count == MAX_LEDS_PER_BUS / 2); // constructor is the live config ingress
+    assert(cfg.adjustBounds(total));
     cfg = config(UINT16_MAX,2);
-    assert(cfg.adjustBounds(total) && cfg.count == MAX_LEDS_PER_BUS / 2 - 2);
+    assert(cfg.count == MAX_LEDS_PER_BUS / 2 - 2);
+    assert(cfg.adjustBounds(total));
   }
 
   // Full-output estimation counts five channels and both address controllers.
@@ -245,6 +361,16 @@ int main() {
   }
 
   // Constructor failures/destruction must not leak the logical color buffer.
+  // A failed bus must not release a pin later acquired by a replacement bus.
+  {
+    denyMemory = true;
+    auto failed = std::make_unique<BusDigital>(config());
+    denyMemory = false;
+    BusDigital replacement(config());
+    assert(replacement.isOk() && PinManager::allocated[16]);
+    failed.reset();
+    assert(PinManager::allocated[16]);
+  }
   denyMemory = true;
   { BusDigital bus(config()); assert(!bus.isOk()); }
   denyMemory = false;
@@ -258,7 +384,8 @@ int main() {
     auto cfg = config(); cfg.iType = I_NONE;
     BusDigital bus(cfg); assert(!bus.isOk());
   }
-  { BusDigital bus(config(UINT16_MAX)); assert(!bus.isOk()); }
-  std::cout << "Paired output checks passed: chase, 360 channel/order combinations, CCT endpoints/mix, readback, skip/reverse, ABL, zero brightness, validation and allocation failures\n";
+  { auto cfg = config(); cfg.count = UINT16_MAX; BusDigital bus(cfg); assert(!bus.isOk()); }
+  { auto cfg = config(); cfg.count = MAX_LEDS_PER_BUS / 2 + 1; BusDigital bus(cfg); assert(!bus.isOk()); }
+  std::cout << "Paired output checks passed: chase, 360 channel/order combinations, CCT endpoints/mix, readback, skip/reverse, ABL, zero brightness, channel modes, segment compositor, live bounds and GPIO/allocation recovery\n";
 }
 // AI: end

@@ -9,7 +9,8 @@ const { spawnSync } = require('node:child_process');
 
 // Compile the production BusDigital implementation against an in-memory wire
 // transport. This checks pairing, CCT, readback and limiting without an ESP32.
-// Hardware timing is covered separately by the firmware build and device tests.
+// The firmware build checks embedded integration; transport timing still needs
+// physical device testing.
 test('paired RGB+CCT output driver', { timeout: 30000 }, t => {
   const compiler = process.env.CXX || 'g++';
   if (spawnSync(compiler, ['--version']).status !== 0) {
@@ -32,6 +33,9 @@ test('paired RGB+CCT output driver', { timeout: 30000 }, t => {
   const setOrdering = between(wrapper, '    // reorder channels to selected order', '    switch (busType)');
   const getOrdering = between(wrapper, '    // upper nibble contains W swap information\n    uint8_t w = col.W;', '  static void cleanup');
   const fade = between(read('wled00/colors.cpp'), 'uint32_t IRAM_ATTR color_fade', '\n/*');
+  const segmentOutput = between(read('wled00/FX.h'), '    inline uint32_t getOutputColor', '    // AI: end');
+  const segmentCapabilities = between(read('wled00/FX.h'), '    inline uint8_t  getLightCapabilities()', '    inline void     deactivate()');
+  const fastBlend = between(read('wled00/FX_fcn.cpp'), '      // 1D fast path, include CCT', '\n      return;');
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'wled-paired-test-'));
   try {
     const harness = read('tools/paired-bus-harness.cpp')
@@ -39,6 +43,9 @@ test('paired RGB+CCT output driver', { timeout: 30000 }, t => {
       .replace('// @SET_ORDERING@', setOrdering)
       .replace('// @GET_ORDERING@', getOrdering)
       .replace('// @FADE@', fade)
+      .replace('// @SEGMENT_OUTPUT@', segmentOutput)
+      .replace('// @SEGMENT_CAPABILITIES@', segmentCapabilities)
+      .replace('// @FAST_BLEND@', fastBlend)
       .replace('// @METHODS@', methods);
     const cpp = path.join(temp, 'test.cpp'), exe = path.join(temp, 'test');
     fs.writeFileSync(cpp, harness);

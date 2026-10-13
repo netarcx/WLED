@@ -23,12 +23,25 @@ to Red, Green, Blue or W; the two must differ. These channel names refer to the
 sliders that controlled the old white-address segment, before wire color ordering.
 The existing Swap control is retained, including WW & CW.
 
-Use **Auto-calculate W channel from RGB: None**, with the global override set to
-**Disabled** (or **None**), and keep the white slider at zero for color-only
-animations. Manual white brightness and the temperature slider control the
-white emitters. An effect or preset that explicitly requests white can still
-use it. Brightness limiting scales both addresses without changing their white
-temperature; logical color readback is retained for effects.
+The main **Colors** page and each segment's expanded controls now have a
+**Channels** selector: **Color only**, **White only**, or **Color + White**.
+New segments default to Color only. Disabled channels are cleared in the driver,
+including when automatic white calculation is enabled. Controls and reported
+capabilities match the selected mode; presets save the selection as `cm` (`0`,
+`1`, `2`). The main selector changes all selected segments, and shows Mixed
+when their modes differ.
+
+For independent floodlight modes in an animation, create one segment per logical
+pixel and choose each segment's Channels mode. For **Solid**, use one segment
+from start `0` to stop `4` to control all four together, or select all module
+segments before changing the effect and color. White-only animations use their
+explicit W component, or derive brightness from RGB when W is zero. Color +
+White animations likewise add a white component when their effect supplies only
+RGB. **Solid uses the manual white slider**, so its white brightness can be
+adjusted independently. The temperature slider controls warm/cool balance.
+Use Auto-calculate W from RGB: None and global override Disabled (or None) for
+these manual white controls. Brightness limiting scales both addresses without
+changing their temperature; logical color readback is retained for effects.
 
 The old `[0,2,4,6,1,3,5,7]` LED map and separate Color/White segments must be
 replaced for this output type. Upload
@@ -61,7 +74,9 @@ The OTA binary is `build_output/release/WLED_17.0.0-devV5_ESP32.bin`.
 `npm test` also runs the production output-driver code on the host, using an
 in-memory transport and address/undefined-behavior sanitizers when `g++` is
 available. It checks channel mapping, RGB-only chases, temperature, readback,
-skip/reverse, limiting and allocation failures. Only the standard ESP32 firmware
+skip/reverse, limiting, channel modes, the 1D segment compositor, and allocation
+failures. Length validation runs in the live configuration constructor, and
+failure cleanup cannot release a replacement output's GPIO. Only the standard ESP32 firmware
 has been built; physical LED behavior still needs testing on the installation.
 GitHub Actions are disabled on this personal fork, and no upstream PR is planned.
 

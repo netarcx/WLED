@@ -253,7 +253,7 @@
 			len += parseInt(d.Sf["SL"+n].value); // skipped LEDs are allocated too
 			let dma = 0; // DMA memory for this bus (only for I2S)
 			let pbfr = len * 8; // pixel buffers: global buffer + segment buffer (at least one segment buffer is required)
-			if (isPair(t)) pbfr += parseInt(d.Sf["LC"+n].value) * 4; // logical readback colors
+			if (isPair(t)) pbfr += parseInt(d.Sf["LC"+n].value) * 5; // logical readback colors + output modes
 			let ch = 3*hasRGB(t) + hasW(t) + hasCCT(t);
 			if (isPair(t)) ch = 8; // two 4-byte addresses on the wire
 			let mul = 1;

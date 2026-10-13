@@ -10,6 +10,28 @@ namespace PairedRgbw {
   constexpr uint8_t COLD_CHANNEL = 2; // blue
   constexpr unsigned ADDRESSES_PER_PIXEL = 2;
   constexpr unsigned BYTES_PER_PIXEL = 8;
+  constexpr uint8_t COLOR_ONLY = 0;
+  constexpr uint8_t WHITE_ONLY = 1;
+  constexpr uint8_t COLOR_WHITE = 2;
+  constexpr uint8_t UNFILTERED = 255; // pixels belonging to ordinary output types
+
+  constexpr bool validMode(int mode) { return mode >= COLOR_ONLY && mode <= COLOR_WHITE; }
+
+  // Keep effect buffers intact. Convert only the rendered output: explicit W
+  // wins, otherwise animations derive white brightness from their RGB pixels.
+  inline uint32_t segmentColor(uint32_t color, uint8_t mode, bool animated) {
+    if (mode == COLOR_ONLY) return color & 0x00FFFFFFU;
+    unsigned white = color >> 24;
+    if (animated && white == 0) {
+      const unsigned r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+      white = r > g ? (r > b ? r : b) : (g > b ? g : b);
+    }
+    return (mode == WHITE_ONLY ? 0U : color & 0x00FFFFFFU) | (white << 24);
+  }
+
+  constexpr uint8_t capabilities(uint8_t available, uint8_t mode) {
+    return mode == COLOR_ONLY ? available & ~uint8_t(0x06) : mode == WHITE_ONLY ? (available & ~uint8_t(0x01)) | uint8_t(0x02) : available;
+  }
 
   constexpr bool validChannels(int warm, int cold) {
     return warm >= 0 && warm < 4 && cold >= 0 && cold < 4 && warm != cold;
