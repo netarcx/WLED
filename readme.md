@@ -11,9 +11,11 @@
 
 # Personal fork: paired RGB+CCT floodlights
 
-Current build: **17.0.0-devV5-paired.3**, numeric build ID **2610153**.
+Current build: **17.0.0-devV5-paired.4**, numeric build ID **2610154**.
 After flashing, verify this version in **Info** or `/json/info` and refresh the
 browser. Uploading the firmware preserves the controller's saved configuration.
+Revision 4 fixes loading a freshly saved preset while its UI cache still
+contains temporary placeholder text. Such entries now load by preset ID.
 
 This fork adds **Paired SK6812 RGB+CCT** (LED type `35`). WLED sees one pixel
 per floodlight; the driver sends RGB to physical address `2*n` and tunable white
@@ -32,8 +34,9 @@ The existing Swap control is retained, including WW & CW.
 
 The main **Colors** page and each segment's expanded controls now have a
 **Channels** selector: **Color only**, **White only**, or **Color + White**.
-Segments without a saved `cm` value, including those from earlier firmware,
-default to Color only. Choose White only or Color + White to show the white
+New segments default to Color only. Legacy presets without `cm` retain the
+segment's current channel mode; re-save them with an explicit mode so loading
+a preset does not depend on the previous selection. Choose White only or Color + White to show the white
 brightness and temperature controls. Disabled channels are cleared in the driver,
 including when automatic white calculation is enabled. Controls and reported
 capabilities match the selected mode; presets save the selection as `cm` (`0`,
@@ -81,17 +84,26 @@ npm run build
 pio run -e esp32dev
 ```
 
-The OTA binary is `build_output/release/WLED_17.0.0-devV5-paired.3_ESP32.bin`.
+The OTA binary is `build_output/release/WLED_17.0.0-devV5-paired.4_ESP32.bin`.
 `npm test` also runs the production output-driver code on the host, using an
 in-memory transport and address/undefined-behavior sanitizers when `g++` is
 available. It checks channel mapping, RGB-only chases, temperature, readback,
 skip/reverse, limiting, channel modes, the 1D segment compositor, and allocation
 failures. Length validation runs in the live configuration constructor, and
-failure cleanup cannot release a replacement output's GPIO. Only the standard
-ESP32 target is built locally. On the earlier paired firmware, the two-module
-installation was physically checked for red RGB, warm white, cool white, and a
-red scan alternating between modules with white off. Revision 3's channel-mode
-controls still need physical verification after flashing.
+failure cleanup cannot release a replacement output's GPIO. Preset-loader
+regressions also cover temporary UI placeholders, cached JSON channel modes,
+legacy commands and playlists. Only the standard ESP32 target is built locally.
+
+On the two-module installation, the user confirmed red RGB, warm white, cool
+white, and a red scan alternating between modules with white off. With paired.3,
+all five migrated presets loaded from storage and all three channel modes
+survived save/reload. A persistent WebSocket smoke test exercised 217 selectable
+effect IDs in each channel mode (651 cases), with no firmware errors or reboot;
+four reserved IDs were skipped. White-only Peek frames were checked for grayscale.
+These brief tests cover the two-pixel setup, including normal fallbacks; they do
+not verify genuine matrix rendering or microphone input. Revision 4 keeps the
+same renderer; its preset-cache UI fix was tested in the browser, and the new
+binary still needs flashing.
 GitHub Actions are disabled on this personal fork, and no upstream PR is planned.
 
 # Welcome to WLED! ✨
