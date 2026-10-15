@@ -11,13 +11,20 @@
 
 # Personal fork: paired RGB+CCT floodlights
 
+Current build: **17.0.0-devV5-paired.3**, numeric build ID **2610153**.
+After flashing, verify this version in **Info** or `/json/info` and refresh the
+browser. Uploading the firmware preserves the controller's saved configuration.
+
 This fork adds **Paired SK6812 RGB+CCT** (LED type `35`). WLED sees one pixel
 per floodlight; the driver sends RGB to physical address `2*n` and tunable white
 to address `2*n+1`, using the existing SK6812 transport and color order.
 
-In **Config → LED Preferences**, choose the new type and set **Length to 4**
-for four floodlights. Keep **GPIO 16**, **BRG** color order and **Swap: None**
-for this installation. The separate **Warm white channel** and **Cool white
+In **Config → LED Preferences**, choose the new type and set **Length to 2**
+for the two floodlights on the current controller at `10.0.0.111`. Its tested
+settings are **GPIO 2**, **BRG** color order and **Swap: None**; preserve its
+existing relay settings (GPIO 18). Each logical floodlight uses two physical
+addresses: `0+1 → 0`, `2+3 → 1`. For another controller, use its own data GPIO
+and set Length to its number of floodlights. The separate **Warm white channel** and **Cool white
 channel** selectors default to **Green** and **Blue**. Either can be reassigned
 to Red, Green, Blue or W; the two must differ. These channel names refer to the
 sliders that controlled the old white-address segment, before wire color ordering.
@@ -25,7 +32,9 @@ The existing Swap control is retained, including WW & CW.
 
 The main **Colors** page and each segment's expanded controls now have a
 **Channels** selector: **Color only**, **White only**, or **Color + White**.
-New segments default to Color only. Disabled channels are cleared in the driver,
+Segments without a saved `cm` value, including those from earlier firmware,
+default to Color only. Choose White only or Color + White to show the white
+brightness and temperature controls. Disabled channels are cleared in the driver,
 including when automatic white calculation is enabled. Controls and reported
 capabilities match the selected mode; presets save the selection as `cm` (`0`,
 `1`, `2`). The main selector changes all selected segments, and shows Mixed
@@ -33,7 +42,7 @@ when their modes differ.
 
 For independent floodlight modes in an animation, create one segment per logical
 pixel and choose each segment's Channels mode. For **Solid**, use one segment
-from start `0` to stop `4` to control all four together, or select all module
+from start `0` to stop `2` to control both together, or select all module
 segments before changing the effect and color. White-only animations use their
 explicit W component, or derive brightness from RGB when W is zero. Color +
 White animations likewise add a white component when their effect supplies only
@@ -44,13 +53,15 @@ these manual white controls. Brightness limiting scales both addresses without
 changing their temperature; logical color readback is retained for effects.
 
 The old `[0,2,4,6,1,3,5,7]` LED map and separate Color/White segments must be
-replaced for this output type. Upload
-[the identity map](tools/paired-floods/ledmap.json) as `/ledmap.json`, use a single
-segment covering logical pixels **0–3** (start `0`, stop `4`), and recreate old
+replaced for this output type. If an old map exists, replace it with
+[the identity map](tools/paired-floods/ledmap.json) as `/ledmap.json`; no map is
+needed when none exists. Use a single segment covering logical pixels **0–1**
+(start `0`, stop `2`), and recreate old
 presets that restore the two-segment layout. Skip and Reverse now operate on
 whole floodlights. Current per LED is current **per floodlight**; the example
-uses 110 mA as a conservative migration from two addresses at 55 mA each, not
-a measured electrical rating.
+uses 110 mA as a migration from two addresses at 55 mA each, not a measured
+electrical rating. The current controller has brightness limiting disabled;
+the hardware example retains that setting.
 
 Configuration examples for this installation:
 
@@ -70,14 +81,17 @@ npm run build
 pio run -e esp32dev
 ```
 
-The OTA binary is `build_output/release/WLED_17.0.0-devV5_ESP32.bin`.
+The OTA binary is `build_output/release/WLED_17.0.0-devV5-paired.3_ESP32.bin`.
 `npm test` also runs the production output-driver code on the host, using an
 in-memory transport and address/undefined-behavior sanitizers when `g++` is
 available. It checks channel mapping, RGB-only chases, temperature, readback,
 skip/reverse, limiting, channel modes, the 1D segment compositor, and allocation
 failures. Length validation runs in the live configuration constructor, and
-failure cleanup cannot release a replacement output's GPIO. Only the standard ESP32 firmware
-has been built; physical LED behavior still needs testing on the installation.
+failure cleanup cannot release a replacement output's GPIO. Only the standard
+ESP32 target is built locally. On the earlier paired firmware, the two-module
+installation was physically checked for red RGB, warm white, cool white, and a
+red scan alternating between modules with white off. Revision 3's channel-mode
+controls still need physical verification after flashing.
 GitHub Actions are disabled on this personal fork, and no upstream PR is planned.
 
 # Welcome to WLED! ✨

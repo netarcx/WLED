@@ -1,8 +1,8 @@
 {
   "hw": {
     "led": {
-      "total": 4,
-      "maxpwr": 2000,
+      "total": 2,
+      "maxpwr": 0,
       "cct": false,
       "cr": false,
       "ic": false,
@@ -11,8 +11,8 @@
       "ins": [
         {
           "start": 0,
-          "len": 4,
-          "pin": [16],
+          "len": 2,
+          "pin": [2],
           "order": 2,
           "rev": false,
           "skip": 0,
